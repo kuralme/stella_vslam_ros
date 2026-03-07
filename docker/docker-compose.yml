@@ -1,21 +1,24 @@
 services:
-  stella-slam-desktop:
+  stella-vslam-pc:
     build:
         context: ..
-        dockerfile: docker/Dockerfile.desktop
-    image: stella-slam-desktop
-    container_name: stella-slam-desktop
+        dockerfile: docker/Dockerfile.pc
+    image: stella-vslam-pc
+    container_name: stella-vslam-pc
     privileged: true
     network_mode: host
+    ipc: host
+    init: true
     gpus: all
     environment:
       QT_X11_NO_MITSHM: 1
       DISPLAY: ${DISPLAY}
       ROS_DOMAIN_ID: 0
-      # RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-      # - FASTRTPS_DEFAULT_PROFILES_FILE=/fastdds_profile.xml
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      FASTDDS_BUILTIN_TRANSPORTS: UDPv4
     volumes:
       - /tmp/.X11-unix/:/tmp/.X11-unix/
       - ../kitti_data_odometry:/ros2_ws/src/stella_vslam_ros/kitti_data_odometry
       - ../orb_vocab.fbow:/ros2_ws/src/stella_vslam_ros/orb_vocab.fbow
     entrypoint: /ros_entrypoint.sh
+    command: ros2 launch /ros2_ws/src/stella_vslam_ros/launch/stella_vslam.launch.py
