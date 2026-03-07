@@ -36,7 +36,7 @@ RUN set -x && \
   rm -rf /var/lib/apt/lists/*
 
 ARG CMAKE_INSTALL_PREFIX=/usr/local
-ARG NUM_THREADS=1
+ARG NUM_THREADS=4
 
 ENV CPATH=${CMAKE_INSTALL_PREFIX}/include:${CPATH}
 ENV C_INCLUDE_PATH=${CMAKE_INSTALL_PREFIX}/include:${C_INCLUDE_PATH}
@@ -108,6 +108,7 @@ RUN set -x && \
   cd /tmp && \
   rm -rf *
 
+
 # stella_vslam
 RUN set -x && \
   : "stella_vslam dependencies" && \
@@ -117,7 +118,6 @@ RUN set -x && \
   : "remove cache" && \
   apt-get autoremove -y -qq && \
   rm -rf /var/lib/apt/lists/*
-
 RUN set -x && \
   git clone --depth 1 https://github.com/stella-cv/stella_vslam.git && \
   cd stella_vslam && \
@@ -127,8 +127,25 @@ RUN set -x && \
   CMAKE_PREFIX_PATH=/opt/ros/${ROS_DISTRO}/lib/cmake cmake .. && \
   make -j${NUM_THREADS} && \
   make install && \
-  rm -rf CMakeCache.txt CMakeFiles Makefile cmake_install.cmake example src && \
+  rm -rf CMakeCache.txt CMakeFiles Makefile cmake_install.cmake && \
   chmod -R 777 ./*
+
+# ROS2
+RUN set -x && \
+  apt-get update -y -qq && \
+  : "install ROS2 packages" && \
+  apt-get install -y -qq \
+    ros-${ROS_DISTRO}-image-transport \
+    ros-${ROS_DISTRO}-cv-bridge \
+    ros-${ROS_DISTRO}-rosbag2-storage-mcap \
+    ros-${ROS_DISTRO}-rmw-fastrtps-cpp \
+    python3-pip \
+    python3-colcon-common-extensions && \
+  pip3 install -U \
+    argcomplete && \
+  : "remove cache" && \
+  apt-get autoremove -y -qq && \
+  rm -rf /var/lib/apt/lists/*
 
 ARG PANGOLIN_VIEWER_COMMIT=f3564675d420bcdbe6380b29b5e2f2b623987dd0
 WORKDIR /tmp
@@ -144,25 +161,8 @@ RUN set -x && \
     -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} \
     .. && \
   make -j${NUM_THREADS} && \
-  make install && \
-  cd /tmp && \
-  rm -rf *
-
-# ROS2
-RUN set -x && \
-  apt-get update -y -qq && \
-  : "install ROS2 packages" && \
-  apt-get install -y -qq \
-    ros-${ROS_DISTRO}-image-transport \
-    ros-${ROS_DISTRO}-cv-bridge \
-    ros-${ROS_DISTRO}-rosbag2-storage-mcap \
-    python3-pip \
-    python3-colcon-common-extensions && \
-  pip3 install -U \
-    argcomplete && \
-  : "remove cache" && \
-  apt-get autoremove -y -qq && \
-  rm -rf /var/lib/apt/lists/*
+  make install
+  # cd /tmp && rm -rf *
 
 WORKDIR /ros2_ws
 COPY . /ros2_ws/src/stella_vslam_ros
@@ -173,9 +173,6 @@ RUN set -x && \
   colcon build --parallel-workers ${NUM_THREADS} --cmake-args \
     -DUSE_STACK_TRACE_LOGGER=ON"
 
-RUN set -x && \
-  sh -c "echo '#'\!'/bin/bash\nset -e\nsource /opt/ros/${ROS_DISTRO}/setup.bash\nsource /ros2_ws/install/setup.bash\nexec \"\$@\"' > /ros_entrypoint.sh" && \
-  chmod u+x /ros_entrypoint.sh
-
+COPY ./docker/ros_entrypoint.sh /ros_entrypoint.sh
+RUN chmod +x /ros_entrypoint.sh
 ENTRYPOINT ["/ros_entrypoint.sh"]
-CMD ["bash"]

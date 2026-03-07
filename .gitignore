@@ -6,6 +6,8 @@ cmake-build-release/
 *.bag
 *.fbow
 
+kitti_data_odometry/*
+
 # Prerequisites
 *.d
 
