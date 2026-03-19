@@ -4,7 +4,6 @@ cmake-build-release/
 */.python-version
 *.user
 *.bag
-*.fbow
 
 kitti_data_odometry/*
 

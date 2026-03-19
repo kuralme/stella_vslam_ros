@@ -15,7 +15,8 @@ RUN set -x && \
     wget \
     curl \
     tar \
-    unzip && \
+    unzip \
+    usbutils && \
   : "g2o dependencies" && \
   apt-get install -y -qq \
     libgoogle-glog-dev \
@@ -138,13 +139,18 @@ RUN set -x && \
   apt-get update -y -qq && \
   : "install ROS2 packages" && \
   apt-get install -y -qq \
-    ros-${ROS_DISTRO}-image-transport \
-    ros-${ROS_DISTRO}-cv-bridge \
+    libusb-1.0-0-dev \
+    python3-pip \
+    python3-colcon-common-extensions  \
     ros-${ROS_DISTRO}-rosbag2-storage-mcap \
     ros-${ROS_DISTRO}-rmw-fastrtps-cpp \
     ros-${ROS_DISTRO}-example-interfaces \
-    python3-pip \
-    python3-colcon-common-extensions && \
+    ros-${ROS_DISTRO}-image-transport \
+    ros-${ROS_DISTRO}-image-transport-plugins \
+    ros-${ROS_DISTRO}-cv-bridge \
+    ros-${ROS_DISTRO}-vision-opencv \
+    ros-${ROS_DISTRO}-vision-msgs \
+    ros-${ROS_DISTRO}-depthai-ros && \
   pip3 install -U \
     argcomplete && \
   : "remove cache" && \
@@ -216,12 +222,12 @@ WORKDIR /ros2_ws/src/stella_vslam_ros
 COPY 3rd 3rd
 COPY cmake cmake
 COPY src src
+COPY config config
 COPY scripts scripts
 COPY launch launch
 COPY CMakeLists.txt .
 COPY package.xml .
-RUN mkdir -p /ros2_ws/src/stella_vslam_ros/config && \
-  cp -r /tmp/stella_vslam/example/* /ros2_ws/src/stella_vslam_ros/config/
+RUN cp -r /tmp/stella_vslam/example/* /ros2_ws/src/stella_vslam_ros/config/
 
 RUN set -x && cd /ros2_ws && \
   : "build ROS2 packages" && \

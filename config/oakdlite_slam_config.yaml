@@ -1,0 +1,109 @@
+# OAK-D Lite Stereo Configuration for stella_vslam_ros
+
+#==============#
+# System Model #
+#==============#
+
+System:
+  num_grid_cols: 40
+  num_grid_rows: 15
+
+#==============#
+# Camera Model #
+#==============#
+
+Camera:
+  name: "OAK-D Lite Stereo"
+  setup: "stereo"
+  model: "perspective"
+
+  # Rectified Intrinsics - averaged from actual calibration
+  fx: 457.0
+  fy: 457.0
+  cx: 320.0
+  cy: 240.0
+
+  # Rectified images from depthai_ros_driver have 0 distortion
+  k1: 0.0
+  k2: 0.0
+  p1: 0.0
+  p2: 0.0
+  k3: 0.0
+
+  fps: 30.0
+  cols: 640
+  rows: 480
+
+  # Calculation: fx (457.0) * baseline (0.075m) = 34.275
+  focal_x_baseline: 34.275
+  
+  # OAK-D Lite depth is reliable up to ~4-5 meters indoors
+  depth_threshold: 4.5
+
+  # OV7251 are Mono sensors
+  color_order: "Gray"
+
+#=====================#
+# Tracking Parameters #
+#=====================#
+
+Tracking:
+  margin_last_frame_projection: 5.0
+
+Preprocessing:
+  min_size: 480
+
+#================#
+# ORB Parameters #
+#================#
+
+Feature:
+  name: "default ORB feature extraction setting"
+  scale_factor: 1.2
+  num_levels: 8
+  ini_fast_threshold: 20
+  min_fast_threshold: 7
+
+#====================#
+# Mapping Parameters #
+#====================#
+
+Mapping:
+  baseline_dist_thr: 0.075
+  redundant_obs_ratio_thr: 0.9
+
+#===========================#
+# PangolinViewer Parameters #
+#===========================#
+
+PangolinViewer:
+  # Size of the "pyramid" representing a keyframe/camera. 
+  # 0.05 to 0.1 is 5-10cm, which fits the 75mm baseline
+  keyframe_size: 0.07 
+  keyframe_line_width: 1
+  graph_line_width: 1
+  point_size: 2
+  camera_size: 0.08
+  camera_line_width: 2
+  
+  # Initial camera position in the viewer [m]
+  viewpoint_x: 0.0
+  viewpoint_y: -1.0
+  viewpoint_z: -0.1
+  viewpoint_f: 500
+
+
+#===========================#
+# StereoRectifier Parameters #
+#===========================#
+
+# Passtrough rectification here, the depthai_ros_driver already provides rectified images
+StereoRectifier:
+  K_left: [457.0, 0.0, 320.0, 0.0, 457.0, 240.0, 0.0, 0.0, 1.0]
+  D_left: [0.0, 0.0, 0.0, 0.0, 0.0]
+  R_left: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+  P_left: [457.0, 0.0, 320.0, 0.0, 0.0, 457.0, 240.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+  K_right: [457.0, 0.0, 320.0, 0.0, 457.0, 240.0, 0.0, 0.0, 1.0]
+  D_right: [0.0, 0.0, 0.0, 0.0, 0.0]
+  R_right: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+  P_right: [457.0, 0.0, 320.0, -34.275, 0.0, 457.0, 240.0, 0.0, 0.0, 0.0, 1.0, 0.0]

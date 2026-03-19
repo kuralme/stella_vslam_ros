@@ -17,8 +17,9 @@ services:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
       FASTDDS_BUILTIN_TRANSPORTS: UDPv4
     volumes:
+      - /dev/bus/usb:/dev/bus/usb
       - /tmp/.X11-unix/:/tmp/.X11-unix/
-      - ../kitti_data_odometry:/ros2_ws/src/stella_vslam_ros/kitti_data_odometry
-      - ../orb_vocab.fbow:/ros2_ws/src/stella_vslam_ros/orb_vocab.fbow
+      # - ../kitti_data_odometry:/ros2_ws/src/stella_vslam_ros/kitti_data_odometry
     entrypoint: /ros_entrypoint.sh
-    command: ros2 launch /ros2_ws/src/stella_vslam_ros/launch/stella_vslam.launch.py
+    # command: ros2 launch /ros2_ws/src/stella_vslam_ros/launch/test_kitti_stereo.launch.py
+    command: ros2 launch /ros2_ws/src/stella_vslam_ros/launch/test_stereo_cam.launch.py
