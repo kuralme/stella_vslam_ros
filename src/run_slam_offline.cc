@@ -42,7 +42,7 @@ namespace fs = ghc::filesystem;
 #include <rosbag2_cpp/readers/sequential_reader.hpp>
 
 void tracking(const std::shared_ptr<stella_vslam_ros::system>& slam_ros,
-              const std::shared_ptr<stella_vslam::config>& cfg,
+              [[maybe_unused]] const std::shared_ptr<stella_vslam::config>& cfg,
               const std::string& eval_log_dir,
               const std::string& map_db_path,
               const std::string& bag_path,

@@ -8,14 +8,30 @@ if(POLICY CMP0072)
     set(OpenGL_GL_PREFERENCE LEGACY)
 endif()
 if(POLICY CMP0074)
-    cmake_policy(SET CMP0074 OLD)
+    cmake_policy(SET CMP0074 NEW)
 endif()
 
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+#######################
+# Check C++20 support #
+#######################
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+########################################
+# OPi5b (RK3588) Hardware Optimization #
+########################################
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+    add_compile_options(-march=armv8.2-a+fp16+dotprod+crypto)
+    message(STATUS "Applied RK3588/Cortex-A76 optimization flags")
+endif()
 
 ##################
 # Set build type #
 ##################
+
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "Release")
@@ -82,31 +98,6 @@ else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=native")
     set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -mtune=native")
     message(STATUS "Architecture-aware optimization (-march=native): DISABLED")
-endif()
-
-#######################
-# Check C++11 support #
-#######################
-
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag("-std=c++17" COMPILER_SUPPORTS_CXX17)
-check_cxx_compiler_flag("-std=c++14" COMPILER_SUPPORTS_CXX14)
-check_cxx_compiler_flag("-std=c++11" COMPILER_SUPPORTS_CXX11)
-check_cxx_compiler_flag("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
-if(COMPILER_SUPPORTS_CXX17)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-    message(STATUS "C++11 support: OK (-std=c++17)")
-elseif(COMPILER_SUPPORTS_CXX14)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-    message(STATUS "C++11 support: OK (-std=c++14)")
-elseif(COMPILER_SUPPORTS_CXX11)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    message(STATUS "C++11 support: OK (-std=c++11)")
-elseif(COMPILER_SUPPORTS_CXX0X)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-    message(STATUS "C++11 support: OK (-std=c++0x)")
-else()
-    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
 #################
@@ -251,10 +242,7 @@ if(spdlog_FOUND)
   target_link_libraries(stella_vslam_ros_system PRIVATE
     spdlog::spdlog)
 endif()
-if(NOT WIN32)
-  ament_environment_hooks(
-    "${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH}")
-endif()
+
 install(TARGETS
   stella_vslam_ros_system
   EXPORT export_${PROJECT_NAME}
