@@ -19,12 +19,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-########################################
-# OPi5b (RK3588) Hardware Optimization #
-########################################
+#########################
+# Hardware Optimization #
+#########################
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-    add_compile_options(-march=armv8.2-a+fp16+dotprod+crypto)
-    message(STATUS "Applied RK3588/Cortex-A76 optimization flags")
+    add_compile_options(-march=armv8-a)
+    message(STATUS "Applied generic ARMv8-A optimization flags")
+    # add_compile_options(-march=armv8.2-a+fp16+dotprod+crypto)
+    # message(STATUS "Applied RK3588/Cortex-A76 optimization flags")
 endif()
 
 ##################
