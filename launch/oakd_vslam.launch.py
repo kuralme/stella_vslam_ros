@@ -8,9 +8,11 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
-    vocab = "/ros2_ws/src/stella_vslam_ros/config/orb_vocab.fbow"
-    cam_config = "/ros2_ws/src/stella_vslam_ros/config/oakdlite_config.yaml"
-    slam_config = "/ros2_ws/src/stella_vslam_ros/config/oakdlite_slam_config.yaml"
+    config_dir = os.path.join(get_package_share_directory('stella_vslam_ros'), 'config', '')
+    vocab = config_dir + 'orb_vocab.fbow'
+    cam_config = config_dir + 'oakdlite_config.yaml'
+    slam_config = config_dir + 'oakdlite_slam_config.yaml'
+    joy_config = config_dir + 'f710.config.yaml'
 
     # Joystick Teleop
     joy_teleop = IncludeLaunchDescription(
@@ -18,7 +20,7 @@ def generate_launch_description():
             os.path.join(get_package_share_directory('teleop_twist_joy'), 'launch', 'teleop-launch.py')
         ),
         launch_arguments={
-            'joy_config': 'xbox',
+            'config_filepath': joy_config,
             'joy_vel': '/fastbot/cmd_vel'
         }.items()
     )
@@ -56,7 +58,7 @@ def generate_launch_description():
     )
 
     delayed_vslam_node = TimerAction(
-            period=8.0,
+            period=12.0,
             actions=[vslam_node]
     )
 

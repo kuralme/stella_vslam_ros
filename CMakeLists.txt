@@ -253,6 +253,7 @@ install(TARGETS
   RUNTIME DESTINATION bin
 )
 install(DIRECTORY 
+    config
     launch
     DESTINATION share/${PROJECT_NAME}
 )
