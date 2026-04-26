@@ -25,6 +25,14 @@ def generate_launch_description():
         }.items()
     )
 
+    # Static transform base link to camera
+    static_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='base_link_to_camera_bridge',
+        arguments=['0.04', '0', '0.155', '0', '0', '0', 'base_link', 'oak-d-base-frame']
+    )
+
     # DepthAI Driver
     oak_driver = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
@@ -51,19 +59,16 @@ def generate_launch_description():
             '-v', vocab,
             '-c', slam_config
         ],
-        remappings=[
-            ('camera/left/image_raw', '/oak/left/image_rect'),
-            ('camera/right/image_raw', '/oak/right/image_rect'),
-        ]
     )
 
-    delayed_vslam_node = TimerAction(
+    delayed_vslam = TimerAction(
             period=12.0,
             actions=[vslam_node]
     )
 
     return LaunchDescription([
+        static_tf,
         joy_teleop,
         oak_driver,
-        delayed_vslam_node
+        delayed_vslam
     ])

@@ -21,6 +21,13 @@ Eigen::Affine3d project_to_xy_plane(const Eigen::Affine3d& affine) {
     double yaw = std::atan2(ry, rx);
     return trans * Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ());
 }
+constexpr auto ODOM_TOPIC = "/fastbot/camera_odom";
+constexpr auto KEYFRAMES_TOPIC = "/fastbot/keyframes";
+constexpr auto KEYFRAMES_2D_TOPIC = "/fastbot/keyframes_2d";
+constexpr auto INIT_POSE_TOPIC = "/initialpose";
+constexpr auto LEFT_CAMERA_TOPIC = "/oak/left/image_rect";
+constexpr auto RIGHT_CAMERA_TOPIC = "/oak/right/image_rect";
+
 } // namespace
 
 namespace stella_vslam_ros {
@@ -29,15 +36,15 @@ system::system(const std::shared_ptr<stella_vslam::system>& slam,
                const std::string& mask_img_path)
     : slam_(slam), node_(node), custom_qos_(rmw_qos_profile_sensor_data),
       mask_(mask_img_path.empty() ? cv::Mat{} : cv::imread(mask_img_path, cv::IMREAD_GRAYSCALE)),
-      pose_pub_(node_->create_publisher<nav_msgs::msg::Odometry>("~/camera_pose", 1)),
-      keyframes_pub_(node_->create_publisher<geometry_msgs::msg::PoseArray>("~/keyframes", 1)),
-      keyframes_2d_pub_(node_->create_publisher<geometry_msgs::msg::PoseArray>("~/keyframes_2d", 1)),
+      pose_pub_(node_->create_publisher<nav_msgs::msg::Odometry>(ODOM_TOPIC, 1)),
+      keyframes_pub_(node_->create_publisher<geometry_msgs::msg::PoseArray>(KEYFRAMES_TOPIC, 1)),
+      keyframes_2d_pub_(node_->create_publisher<geometry_msgs::msg::PoseArray>(KEYFRAMES_2D_TOPIC, 1)),
       map_to_odom_broadcaster_(std::make_shared<tf2_ros::TransformBroadcaster>(node_)),
       tf_(std::make_unique<tf2_ros::Buffer>(node_->get_clock())),
       transform_listener_(std::make_shared<tf2_ros::TransformListener>(*tf_)) {
     custom_qos_.depth = 1;
     init_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-        "/initialpose", 1,
+        INIT_POSE_TOPIC, 1,
         std::bind(&system::init_pose_callback,
                   this, std::placeholders::_1));
     setParams();
@@ -128,13 +135,13 @@ void system::setParams() {
     robot_base_frame_ = std::string("base_link");
     robot_base_frame_ = node_->declare_parameter("robot_base_frame", robot_base_frame_);
 
-    camera_frame_ = std::string("camera_frame");
+    camera_frame_ = std::string("oak-d-base-frame");
     camera_frame_ = node_->declare_parameter("camera_frame", camera_frame_);
 
     publish_tf_ = true;
     publish_tf_ = node_->declare_parameter("publish_tf", publish_tf_);
 
-    odom2d_ = false;
+    odom2d_ = true;
     odom2d_ = node_->declare_parameter("odom2d", odom2d_);
 
     publish_keyframes_ = true;
@@ -276,8 +283,8 @@ stereo::stereo(const std::shared_ptr<stella_vslam::system>& slam,
                const std::shared_ptr<stella_vslam::util::stereo_rectifier>& rectifier)
     : system(slam, node, mask_img_path),
       rectifier_(rectifier),
-      left_sf_(node_, "camera/left/image_raw"),
-      right_sf_(node_, "camera/right/image_raw") {
+      left_sf_(node_, LEFT_CAMERA_TOPIC),
+      right_sf_(node_, RIGHT_CAMERA_TOPIC) {
     use_exact_time_ = false;
     use_exact_time_ = node_->declare_parameter("use_exact_time", use_exact_time_);
     if (use_exact_time_) {

@@ -4,6 +4,7 @@
       i_pipeline_type: depth
       i_nn_type: none
       i_usb_speed: SUPER
+      i_publish_tf: true
     left:
       i_publish_topic: true
       i_fps: 60.0
@@ -13,10 +14,10 @@
       i_fps: 60.0
       i_resolution: 480P
     stereo:
-      i_publish_left_rect: true
-      i_publish_right_rect: true
       i_left_rect_publish_topic: true
       i_right_rect_publish_topic: true
+      i_left_rect_synced: false  # not working, disabled for now
+      i_right_rect_synced: false # not working, disabled for now
       i_fps: 60.0
     rgb:
       i_publish_topic: false
