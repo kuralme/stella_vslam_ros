@@ -7,17 +7,17 @@
       i_publish_tf: true
     left:
       i_publish_topic: true
-      i_fps: 60.0
+      i_fps: 20.0
       i_resolution: 480P
     right:
       i_publish_topic: true
-      i_fps: 60.0
+      i_fps: 20.0
       i_resolution: 480P
     stereo:
       i_left_rect_publish_topic: true
       i_right_rect_publish_topic: true
       i_left_rect_synced: false  # not working, disabled for now
       i_right_rect_synced: false # not working, disabled for now
-      i_fps: 60.0
+      i_fps: 20.0
     rgb:
       i_publish_topic: false
