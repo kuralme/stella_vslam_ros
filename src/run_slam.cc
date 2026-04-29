@@ -24,6 +24,10 @@
 #include <spdlog/spdlog.h>
 #include <popl.hpp>
 
+#include <tf2_ros/transform_broadcaster.h>
+#include <nav_msgs/msg/odometry.hpp>
+#include <geometry_msgs/msg/transform_stamped.h>
+
 #include <ghc/filesystem.hpp>
 namespace fs = ghc::filesystem;
 

@@ -69,6 +69,11 @@ public:
 
 private:
     void init_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+    void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
+
+    // TF Broadcaster to bridge odom -> base_link
+    std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
 
     Eigen::AngleAxisd rot_ros_to_cv_map_frame_;
 };

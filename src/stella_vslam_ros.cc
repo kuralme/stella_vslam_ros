@@ -52,6 +52,11 @@ system::system(const std::shared_ptr<stella_vslam::system>& slam,
                                 -1, 0, 0,
                                 0, -1, 0)
                                    .finished();
+
+    tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(node_);
+    odom_sub_ = node_->create_subscription<nav_msgs::msg::Odometry>(
+        "/fastbot/encoder_odom", 10,
+        std::bind(&system::odom_callback, this, std::placeholders::_1));
 }
 
 void system::publish_pose(const Eigen::Matrix4d& cam_pose_wc, const rclcpp::Time& stamp) {
@@ -147,7 +152,7 @@ void system::setParams() {
     publish_keyframes_ = true;
     publish_keyframes_ = node_->declare_parameter("publish_keyframes", publish_keyframes_);
 
-    transform_tolerance_ = 0.5;
+    transform_tolerance_ = 0.8;
     transform_tolerance_ = node_->declare_parameter("transform_tolerance", transform_tolerance_);
 
     encoding_ = "";
@@ -218,6 +223,21 @@ void system::init_pose_callback(
     if (!slam_->relocalize_by_pose_2d(cam_pose_cv, normal_vector)) {
         RCLCPP_ERROR(node_->get_logger(), "Can not set initial pose");
     }
+}
+
+void system::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+    // Publish TF from odom_frame to robot base_frame
+    geometry_msgs::msg::TransformStamped odom_to_base;
+
+    odom_to_base.header.stamp = node_->now();
+    odom_to_base.header.frame_id = odom_frame_;
+    odom_to_base.child_frame_id = robot_base_frame_;
+    odom_to_base.transform.translation.x = msg->pose.pose.position.x;
+    odom_to_base.transform.translation.y = msg->pose.pose.position.y;
+    odom_to_base.transform.translation.z = msg->pose.pose.position.z;
+    odom_to_base.transform.rotation = msg->pose.pose.orientation;
+
+    tf_broadcaster_->sendTransform(odom_to_base);
 }
 
 mono::mono(const std::shared_ptr<stella_vslam::system>& slam,
