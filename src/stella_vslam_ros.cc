@@ -1,6 +1,9 @@
 #include <stella_vslam_ros.h>
 #include <stella_vslam/publish/map_publisher.h>
 #include <stella_vslam/data/keyframe.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <stella_vslam/data/landmark.h>
 
 #include <chrono>
 
@@ -21,10 +24,12 @@ Eigen::Affine3d project_to_xy_plane(const Eigen::Affine3d& affine) {
     double yaw = std::atan2(ry, rx);
     return trans * Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ());
 }
-constexpr auto ODOM_TOPIC = "/fastbot/camera_odom";
+constexpr auto CAM_ODOM_TOPIC = "/fastbot/camera_odom";
+constexpr auto ENC_ODOM_TOPIC = "/fastbot/encoder_odom";
+constexpr auto MAP_POINTS_TOPIC = "/fastbot/map_points";
 constexpr auto KEYFRAMES_TOPIC = "/fastbot/keyframes";
 constexpr auto KEYFRAMES_2D_TOPIC = "/fastbot/keyframes_2d";
-constexpr auto INIT_POSE_TOPIC = "/initialpose";
+constexpr auto INIT_POSE_TOPIC = "/fastbot/initialpose";
 constexpr auto LEFT_CAMERA_TOPIC = "/oak/left/image_rect";
 constexpr auto RIGHT_CAMERA_TOPIC = "/oak/right/image_rect";
 
@@ -36,7 +41,7 @@ system::system(const std::shared_ptr<stella_vslam::system>& slam,
                const std::string& mask_img_path)
     : slam_(slam), node_(node), custom_qos_(rmw_qos_profile_sensor_data),
       mask_(mask_img_path.empty() ? cv::Mat{} : cv::imread(mask_img_path, cv::IMREAD_GRAYSCALE)),
-      pose_pub_(node_->create_publisher<nav_msgs::msg::Odometry>(ODOM_TOPIC, 1)),
+      pose_pub_(node_->create_publisher<nav_msgs::msg::Odometry>(CAM_ODOM_TOPIC, 1)),
       keyframes_pub_(node_->create_publisher<geometry_msgs::msg::PoseArray>(KEYFRAMES_TOPIC, 1)),
       keyframes_2d_pub_(node_->create_publisher<geometry_msgs::msg::PoseArray>(KEYFRAMES_2D_TOPIC, 1)),
       map_to_odom_broadcaster_(std::make_shared<tf2_ros::TransformBroadcaster>(node_)),
@@ -53,10 +58,12 @@ system::system(const std::shared_ptr<stella_vslam::system>& slam,
                                 0, -1, 0)
                                    .finished();
 
-    tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(node_);
+    // PointCloud2 publisher for map points
+    map_points_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>(MAP_POINTS_TOPIC, 1);
     odom_sub_ = node_->create_subscription<nav_msgs::msg::Odometry>(
-        "/fastbot/encoder_odom", 10,
+        ENC_ODOM_TOPIC, 10,
         std::bind(&system::odom_callback, this, std::placeholders::_1));
+    tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(node_);
 }
 
 void system::publish_pose(const Eigen::Matrix4d& cam_pose_wc, const rclcpp::Time& stamp) {
@@ -128,6 +135,41 @@ void system::publish_keyframes(const rclcpp::Time& stamp) {
     }
     keyframes_pub_->publish(keyframes_msg);
     keyframes_2d_pub_->publish(keyframes_2d_msg);
+}
+
+void system::publish_map_points(const rclcpp::Time& stamp) {
+    auto map_points_msg = sensor_msgs::msg::PointCloud2();
+    map_points_msg.header.stamp = stamp;
+    map_points_msg.header.frame_id = map_frame_;
+
+    std::vector<std::shared_ptr<stella_vslam::data::landmark>> landmarks;
+    // Fetch landmarks from the internal map publisher
+    slam_->get_map_publisher()->get_landmarks(landmarks);
+
+    sensor_msgs::PointCloud2Modifier modifier(map_points_msg);
+    modifier.setPointCloud2FieldsByString(1, "xyz");
+    modifier.resize(landmarks.size());
+
+    sensor_msgs::PointCloud2Iterator<float> iter_x(map_points_msg, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(map_points_msg, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(map_points_msg, "z");
+
+    for (const auto& lm : landmarks) {
+        if (!lm || lm->will_be_erased())
+            continue;
+
+        // Convert from CV coordinates to ROS coordinates
+        Eigen::Vector3d pos_w = lm->get_pos_in_world();
+        Eigen::Vector3d pos_ros = rot_ros_to_cv_map_frame_ * pos_w;
+
+        *iter_x = pos_ros.x();
+        *iter_y = pos_ros.y();
+        *iter_z = pos_ros.z();
+        ++iter_x;
+        ++iter_y;
+        ++iter_z;
+    }
+    map_points_pub_->publish(map_points_msg);
 }
 
 void system::setParams() {
