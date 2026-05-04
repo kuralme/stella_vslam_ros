@@ -1,8 +1,6 @@
 #include <stella_vslam_ros.h>
 #include <stella_vslam/publish/map_publisher.h>
 #include <stella_vslam/data/keyframe.h>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <stella_vslam/data/landmark.h>
 
 #include <chrono>
@@ -45,25 +43,28 @@ system::system(const std::shared_ptr<stella_vslam::system>& slam,
       keyframes_pub_(node_->create_publisher<geometry_msgs::msg::PoseArray>(KEYFRAMES_TOPIC, 1)),
       keyframes_2d_pub_(node_->create_publisher<geometry_msgs::msg::PoseArray>(KEYFRAMES_2D_TOPIC, 1)),
       map_to_odom_broadcaster_(std::make_shared<tf2_ros::TransformBroadcaster>(node_)),
+      odom_to_base_broadcaster_(std::make_shared<tf2_ros::TransformBroadcaster>(node_)),
       tf_(std::make_unique<tf2_ros::Buffer>(node_->get_clock())),
       transform_listener_(std::make_shared<tf2_ros::TransformListener>(*tf_)) {
     custom_qos_.depth = 1;
+
+    // PointCloud2 publisher for map points
+    map_points_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>(MAP_POINTS_TOPIC, 1);
+    map_timer_ = node_->create_wall_timer(
+        std::chrono::milliseconds(1000),
+        std::bind(&system::map_timer_callback, this));
     init_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         INIT_POSE_TOPIC, 1,
         std::bind(&system::init_pose_callback,
                   this, std::placeholders::_1));
+    odom_sub_ = node_->create_subscription<nav_msgs::msg::Odometry>(
+        ENC_ODOM_TOPIC, 10,
+        std::bind(&system::odom_callback, this, std::placeholders::_1));
     setParams();
     rot_ros_to_cv_map_frame_ = (Eigen::Matrix3d() << 0, 0, 1,
                                 -1, 0, 0,
                                 0, -1, 0)
                                    .finished();
-
-    // PointCloud2 publisher for map points
-    map_points_pub_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>(MAP_POINTS_TOPIC, 1);
-    odom_sub_ = node_->create_subscription<nav_msgs::msg::Odometry>(
-        ENC_ODOM_TOPIC, 10,
-        std::bind(&system::odom_callback, this, std::placeholders::_1));
-    tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(node_);
 }
 
 void system::publish_pose(const Eigen::Matrix4d& cam_pose_wc, const rclcpp::Time& stamp) {
@@ -137,34 +138,41 @@ void system::publish_keyframes(const rclcpp::Time& stamp) {
     keyframes_2d_pub_->publish(keyframes_2d_msg);
 }
 
-void system::publish_map_points(const rclcpp::Time& stamp) {
+void system::map_timer_callback() {
+    if (!slam_)
+        return;
+
+    auto stamp = node_->now();
     auto map_points_msg = sensor_msgs::msg::PointCloud2();
     map_points_msg.header.stamp = stamp;
     map_points_msg.header.frame_id = map_frame_;
 
-    std::vector<std::shared_ptr<stella_vslam::data::landmark>> landmarks;
-    // Fetch landmarks from the internal map publisher
-    slam_->get_map_publisher()->get_landmarks(landmarks);
+    std::vector<std::shared_ptr<stella_vslam::data::landmark>> all_landmarks;
+    std::set<std::shared_ptr<stella_vslam::data::landmark>> local_landmarks;
+    slam_->get_map_publisher()->get_landmarks(all_landmarks, local_landmarks);
+
+    if (all_landmarks.empty()) {
+        return;
+    }
 
     sensor_msgs::PointCloud2Modifier modifier(map_points_msg);
     modifier.setPointCloud2FieldsByString(1, "xyz");
-    modifier.resize(landmarks.size());
+    modifier.resize(all_landmarks.size());
 
     sensor_msgs::PointCloud2Iterator<float> iter_x(map_points_msg, "x");
     sensor_msgs::PointCloud2Iterator<float> iter_y(map_points_msg, "y");
     sensor_msgs::PointCloud2Iterator<float> iter_z(map_points_msg, "z");
 
-    for (const auto& lm : landmarks) {
+    for (const auto& lm : all_landmarks) {
         if (!lm || lm->will_be_erased())
             continue;
 
-        // Convert from CV coordinates to ROS coordinates
-        Eigen::Vector3d pos_w = lm->get_pos_in_world();
-        Eigen::Vector3d pos_ros = rot_ros_to_cv_map_frame_ * pos_w;
+        Eigen::Vector3d pos_cv = lm->get_pos_in_world();
+        Eigen::Vector3d pos_ros = rot_ros_to_cv_map_frame_ * pos_cv;
 
-        *iter_x = pos_ros.x();
-        *iter_y = pos_ros.y();
-        *iter_z = pos_ros.z();
+        *iter_x = static_cast<float>(pos_ros.x());
+        *iter_y = static_cast<float>(pos_ros.y());
+        *iter_z = static_cast<float>(pos_ros.z());
         ++iter_x;
         ++iter_y;
         ++iter_z;
@@ -279,7 +287,7 @@ void system::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     odom_to_base.transform.translation.z = msg->pose.pose.position.z;
     odom_to_base.transform.rotation = msg->pose.pose.orientation;
 
-    tf_broadcaster_->sendTransform(odom_to_base);
+    odom_to_base_broadcaster_->sendTransform(odom_to_base);
 }
 
 mono::mono(const std::shared_ptr<stella_vslam::system>& slam,

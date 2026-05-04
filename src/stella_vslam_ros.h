@@ -22,6 +22,8 @@
 
 #include <opencv2/core/core.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
 namespace stella_vslam_ros {
@@ -32,6 +34,7 @@ public:
            const std::string& mask_img_path);
     void publish_pose(const Eigen::Matrix4d& cam_pose_wc, const rclcpp::Time& stamp);
     void publish_keyframes(const rclcpp::Time& stamp);
+    void publish_map_points(const rclcpp::Time& stamp);
     void setParams();
     std::shared_ptr<stella_vslam::system> slam_;
     std::shared_ptr<stella_vslam::config> cfg_;
@@ -40,11 +43,13 @@ public:
     cv::Mat mask_;
     std::vector<double> track_times_;
     std::shared_ptr<rclcpp::Publisher<nav_msgs::msg::Odometry>> pose_pub_;
-    std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::PoseArray>> keyframes_pub_;
-    std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::PoseArray>> keyframes_2d_pub_;
+    std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::PoseArray>> keyframes_pub_, keyframes_2d_pub_;
+    std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>> map_points_pub_;
     std::shared_ptr<rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>>
         init_pose_sub_;
-    std::shared_ptr<tf2_ros::TransformBroadcaster> map_to_odom_broadcaster_;
+    std::shared_ptr<rclcpp::Subscription<nav_msgs::msg::Odometry>> odom_sub_;
+    std::shared_ptr<tf2_ros::TransformBroadcaster> map_to_odom_broadcaster_, odom_to_base_broadcaster_;
+    rclcpp::TimerBase::SharedPtr map_timer_;
     std::string odom_frame_;
     std::string map_frame_;
     std::string robot_base_frame_;
@@ -67,13 +72,13 @@ public:
 
     std::string encoding_;
 
+    int map_publish_interval_ = 10; // Publish every 10th frame
+    int frame_count_ = 0;
+
 private:
     void init_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
-
-    // TF Broadcaster to bridge odom -> base_link
-    std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    void map_timer_callback();
 
     Eigen::AngleAxisd rot_ros_to_cv_map_frame_;
 };
