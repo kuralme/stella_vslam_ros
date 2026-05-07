@@ -19,7 +19,6 @@ services:
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - /tmp/.X11-unix/:/tmp/.X11-unix/
-      # - ../kitti_data_odometry:/ros2_ws/src/stella_vslam_ros/kitti_data_odometry
+      - ../../recordings:/ros2_ws/recordings
     entrypoint: /ros_entrypoint.sh
-    # command: ros2 launch /ros2_ws/src/stella_vslam_ros/launch/test_kitti_stereo.launch.py
-    command: ros2 launch /ros2_ws/src/stella_vslam_ros/launch/test_stereo_cam.launch.py
+    command: ros2 launch stella_vslam_ros offline_slam.launch.py

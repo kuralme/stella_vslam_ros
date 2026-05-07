@@ -111,16 +111,43 @@ RUN set -x && \
   cd /tmp && \
   rm -rf *
 
+# g2o
+ARG G2O_COMMIT=20230223_git
+WORKDIR /tmp
+RUN set -x && \
+  git clone https://github.com/RainerKuemmerle/g2o.git && \
+  cd g2o && \
+  git checkout ${G2O_COMMIT} && \
+  mkdir -p build && \
+  cd build && \
+  cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} \
+    -DBUILD_SHARED_LIBS=ON \
+    -DBUILD_UNITTESTS=OFF \
+    -DG2O_USE_CHOLMOD=OFF \
+    -DG2O_USE_CSPARSE=ON \
+    -DG2O_USE_OPENGL=OFF \
+    -DG2O_USE_OPENMP=OFF \
+    -DG2O_BUILD_APPS=OFF \
+    -DG2O_BUILD_EXAMPLES=OFF \
+    -DG2O_BUILD_LINKED_APPS=OFF \
+    .. && \
+  make -j${NUM_THREADS} && \
+  make install
+  # cd /tmp && \
+  # rm -rf *
+ENV g2o_DIR=${CMAKE_INSTALL_PREFIX}/lib/cmake/g2o
 
 # stella_vslam
-RUN set -x && \
-  : "stella_vslam dependencies" && \
-  apt-get update -y -qq && \
-  apt-get install -y -qq \
-    ros-${ROS_DISTRO}-libg2o && \
-  : "remove cache" && \
-  apt-get autoremove -y -qq && \
-  rm -rf /var/lib/apt/lists/*
+# RUN set -x && \
+#   : "stella_vslam dependencies" && \
+#   apt-get update -y -qq && \
+#   apt-get install -y -qq \
+#     ros-${ROS_DISTRO}-libg2o && \
+#   : "remove cache" && \
+#   apt-get autoremove -y -qq && \
+#   rm -rf /var/lib/apt/lists/*
 RUN set -x && \
   git clone --depth 1 https://github.com/stella-cv/stella_vslam.git && \
   cd stella_vslam && \
@@ -173,35 +200,6 @@ RUN set -x && \
   make -j${NUM_THREADS} && \
   make install
   # cd /tmp && rm -rf *
-
-
-# g2o
-ARG G2O_COMMIT=20230223_git
-WORKDIR /tmp
-RUN set -x && \
-  git clone https://github.com/RainerKuemmerle/g2o.git && \
-  cd g2o && \
-  git checkout ${G2O_COMMIT} && \
-  mkdir -p build && \
-  cd build && \
-  cmake \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} \
-    -DBUILD_SHARED_LIBS=ON \
-    -DBUILD_UNITTESTS=OFF \
-    -DG2O_USE_CHOLMOD=OFF \
-    -DG2O_USE_CSPARSE=ON \
-    -DG2O_USE_OPENGL=OFF \
-    -DG2O_USE_OPENMP=OFF \
-    -DG2O_BUILD_APPS=OFF \
-    -DG2O_BUILD_EXAMPLES=OFF \
-    -DG2O_BUILD_LINKED_APPS=OFF \
-    .. && \
-  make -j${NUM_THREADS} && \
-  make install
-  # cd /tmp && \
-  # rm -rf *
-ENV g2o_DIR=${CMAKE_INSTALL_PREFIX}/lib/cmake/g2o
 
 ARG EXAMPLES_COMMIT=3606f68c9c3fb05a838e992230cb4a17106a7c41
 RUN set -x && cd /tmp && \
